@@ -1,0 +1,515 @@
+/* ── 핵심 설정 & 변수 세팅 ── */
+:root {
+    --bg-primary: #0f1015;
+    --glass-bg: rgba(30, 31, 46, 0.6);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --accent: #ff2a5f;
+    --accent-hover: #e01f4c;
+    --text-main: #f0f0f5;
+    --text-muted: #a0a0b0;
+    --success: #10b981;
+    --error: #ef4444;
+    --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* ── Body ── */
+body {
+    width: 380px;
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-family);
+    background-color: var(--bg-primary);
+    color: var(--text-main);
+    overflow-x: hidden;
+    position: relative;
+    user-select: none;
+}
+
+/* ── 프리미엄 백그라운드 효과 ── */
+.bg-shape {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    z-index: -1;
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.shape-1 {
+    top: -60px;
+    left: -40px;
+    width: 220px;
+    height: 220px;
+    background: rgba(255, 42, 95, 0.25);
+}
+
+.shape-2 {
+    bottom: -80px;
+    right: -40px;
+    width: 250px;
+    height: 250px;
+    background: rgba(88, 101, 242, 0.15);
+}
+
+.app {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* ── 헤더 ── */
+.header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+
+.logo-box {
+    width: 34px;
+    height: 34px;
+    background: rgba(255, 42, 95, 0.1);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 15px rgba(255, 42, 95, 0.15);
+}
+
+.brand-title {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin: 0;
+    color: #ffffff;
+}
+
+/* ── Glass 카드 컨테이너 ── */
+.glass-panel {
+    background: var(--glass-bg);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--glass-border);
+    border-radius: 18px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+    transition: box-shadow 0.3s ease;
+}
+
+.glass-panel:hover {
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin: 0;
+}
+
+.mb-0 {
+    margin-bottom: 0;
+}
+
+/* ── 버튼 액션 ── */
+.btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px;
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-primary {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(255, 42, 95, 0.3);
+}
+
+.btn-primary:hover {
+    background: var(--accent-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 42, 95, 0.4);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-main);
+    border: 1px solid var(--glass-border);
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-1px);
+}
+
+.btn-danger {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--error);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    margin-top: 6px;
+}
+
+.btn-danger:hover {
+    background: rgba(239, 68, 68, 0.2);
+    transform: translateY(-1px);
+}
+
+/* ── 검색 인풋 박스 ── */
+.search-box {
+    display: flex;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 0 8px 0 14px;
+    transition: var(--transition);
+}
+
+.search-box:focus-within {
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.05);
+}
+
+input[type="text"] {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 12px 0;
+    color: var(--text-main);
+    font-size: 13.5px;
+    outline: none;
+    font-family: inherit;
+}
+
+input[type="text"]::placeholder {
+    color: var(--text-muted);
+    opacity: 0.6;
+}
+
+.search-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-clear {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 14px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: var(--transition);
+}
+
+.btn-clear:hover {
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.btn-search-icon {
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    transition: var(--transition);
+}
+
+.btn-search-icon:hover {
+    background: rgba(255, 42, 95, 0.1);
+    transform: scale(1.05);
+}
+
+.btn-search-icon:active {
+    transform: scale(0.95);
+}
+
+/* ── 리스트 아코디언 메뉴 ── */
+.list-toggle-header {
+    cursor: pointer;
+    padding: 4px 0;
+}
+
+.title-with-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.badge-count {
+    background: rgba(255, 42, 95, 0.15);
+    color: var(--accent);
+    padding: 2px 8px;
+    font-size: 11.5px;
+    font-weight: 700;
+    border-radius: 10px;
+}
+
+.chevron-icon {
+    color: var(--text-muted);
+    transition: transform 0.3s ease;
+}
+
+.chevron-icon.open {
+    transform: rotate(180deg);
+}
+
+.video-list-wrap {
+    overflow: hidden;
+    transition: max-height 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease;
+    max-height: 500px;
+    opacity: 1;
+}
+
+.video-list-wrap.collapsed {
+    max-height: 0;
+    opacity: 0;
+    margin: 0;
+}
+
+.video-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 250px;
+    overflow-y: auto;
+    padding-right: 6px;
+}
+
+/* ── 스크롤바 커스텀 ── */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* ── 결과 리스트 아이템 UI ── */
+.results-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.result-item {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 12px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.result-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.result-title {
+    font-size: 13.5px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #ffffff;
+    line-height: 1.4;
+}
+
+.result-snippet {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    margin-bottom: 10px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-clamp: 2;
+    overflow: hidden;
+}
+
+.result-score {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    background: rgba(255, 42, 95, 0.1);
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 6px;
+}
+
+/* ── 기본 영상 리스트 아이템 ── */
+.video-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    padding: 10px;
+    transition: var(--transition);
+}
+
+.video-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.video-info {
+    flex: 1;
+    min-width: 0;
+    cursor: pointer;
+}
+
+.video-item-title {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #ffffff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 4px;
+}
+
+.video-item-date {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.video-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.icon-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: none;
+    color: var(--text-muted);
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition);
+    font-size: 14px;
+}
+
+.icon-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+}
+
+.delete-btn:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--error);
+}
+
+.copy-btn.copied {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--success);
+}
+
+.empty-msg {
+    text-align: center;
+    padding: 20px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+}
+
+/* ── 상태 알림 (Toast Notification) ── */
+.status {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    padding: 12px 24px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(16px);
+    border-radius: 30px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    z-index: 100;
+}
+
+.status.loading:not(:empty),
+.status.success:not(:empty),
+.status.error:not(:empty) {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+.status.success {
+    border-color: rgba(16, 185, 129, 0.5);
+    color: var(--success);
+}
+
+.status.error {
+    border-color: rgba(239, 68, 68, 0.5);
+    color: var(--error);
+}
+
+.status.loading {
+    border-color: rgba(255, 255, 255, 0.3);
+    color: var(--text-main);
+}
