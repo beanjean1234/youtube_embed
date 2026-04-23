@@ -1,6 +1,6 @@
 {
     "manifest_version": 3,
-    "name": "YouTube Text Extractor",
+    "name": "YouTube Memory",
     "version": "1.0",
     "permissions": [
         "activeTab",
@@ -13,6 +13,9 @@
     ],
     "action": {
         "default_popup": "popup.html"
+    },
+    "icons": {
+        "128": "icon.png"
     },
     "content_scripts": [
         {
