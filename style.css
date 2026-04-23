@@ -84,6 +84,7 @@ body {
     align-items: center;
     justify-content: center;
     box-shadow: 0 0 15px rgba(255, 42, 95, 0.15);
+    flex-shrink: 0;
 }
 
 .brand-title {
@@ -92,6 +93,35 @@ body {
     letter-spacing: 0.5px;
     margin: 0;
     color: #ffffff;
+    flex: 1;
+}
+
+/* ── 헤더 우측 아이콘 버튼 (기어) ── */
+.btn-icon-header {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    color: var(--text-muted);
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+
+.btn-icon-header:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--text-main);
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+.btn-icon-header.active {
+    background: rgba(255, 42, 95, 0.12);
+    color: var(--accent);
+    border-color: rgba(255, 42, 95, 0.3);
 }
 
 /* ── Glass 카드 컨테이너 ── */
@@ -130,6 +160,139 @@ body {
 
 .mb-0 {
     margin-bottom: 0;
+}
+
+/* ── 설정 패널 슬라이드 애니메이션 ── */
+.settings-panel {
+    overflow: hidden;
+    transition: max-height 0.45s cubic-bezier(0.25, 1, 0.5, 1),
+                opacity 0.35s ease,
+                padding 0.35s ease,
+                margin 0.35s ease,
+                border-width 0.35s ease;
+    max-height: 400px;
+    opacity: 1;
+}
+
+.settings-panel.collapsed-panel {
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-width: 0;
+    margin: 0;
+    gap: 0;
+}
+
+/* ── 설정 필드 그룹 ── */
+.field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.field-label {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}
+
+/* ── 커스텀 Select ── */
+.select-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.custom-select {
+    width: 100%;
+    appearance: none;
+    -webkit-appearance: none;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    padding: 10px 36px 10px 12px;
+    font-family: var(--font-family);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-main);
+    cursor: pointer;
+    outline: none;
+    transition: var(--transition);
+}
+
+.custom-select:focus {
+    border-color: rgba(255, 255, 255, 0.25);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.05);
+}
+
+.custom-select option,
+.custom-select optgroup {
+    background: #1e1f2e;
+    color: var(--text-main);
+}
+
+.select-arrow {
+    position: absolute;
+    right: 11px;
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+/* ── API 키 입력 ── */
+.api-key-wrapper {
+    display: flex;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    padding: 0 8px 0 12px;
+    transition: var(--transition);
+}
+
+.api-key-wrapper:focus-within {
+    border-color: rgba(255, 255, 255, 0.25);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.05);
+}
+
+.api-key-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 11px 0;
+    color: var(--text-main);
+    font-size: 13px;
+    font-family: 'Courier New', monospace;
+    outline: none;
+    letter-spacing: 0.5px;
+}
+
+.api-key-input::placeholder {
+    color: var(--text-muted);
+    opacity: 0.55;
+    font-family: var(--font-family);
+    letter-spacing: 0;
+}
+
+.btn-eye {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 7px;
+    transition: var(--transition);
+}
+
+.btn-eye:hover {
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.08);
 }
 
 /* ── 버튼 액션 ── */

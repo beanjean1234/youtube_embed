@@ -15,9 +15,60 @@ function updateBadge(count) {
     badge.style.display = count > 0 ? 'inline-flex' : 'none';
 }
 
+// ==================== ⚙ 설정 패널 ====================
+const settingsToggleBtn = document.getElementById('settingsToggleBtn');
+const settingsPanel     = document.getElementById('settingsPanel');
+const modelSelect       = document.getElementById('modelSelect');
+const apiKeyInput       = document.getElementById('apiKeyInput');
+const toggleKeyVisBtn   = document.getElementById('toggleKeyVisBtn');
+const saveSettingsBtn   = document.getElementById('saveSettingsBtn');
+
+let settingsOpen = false;
+
+// 저장된 설정 불러오기
+chrome.storage.local.get(['embeddingModel', 'embeddingApiKey'], (data) => {
+    if (data.embeddingModel) modelSelect.value = data.embeddingModel;
+    if (data.embeddingApiKey) apiKeyInput.value = data.embeddingApiKey;
+});
+
+// 기어 아이콘 클릭 → 패널 토글
+settingsToggleBtn.addEventListener('click', () => {
+    settingsOpen = !settingsOpen;
+    settingsPanel.classList.toggle('collapsed-panel', !settingsOpen);
+    settingsToggleBtn.classList.toggle('active', settingsOpen);
+});
+
+// API Key 표시/숨기기
+toggleKeyVisBtn.addEventListener('click', () => {
+    const isPassword = apiKeyInput.type === 'password';
+    apiKeyInput.type = isPassword ? 'text' : 'password';
+    document.getElementById('eyeIcon').style.opacity = isPassword ? '0.5' : '1';
+});
+
+// 설정 저장
+saveSettingsBtn.addEventListener('click', () => {
+    const model  = modelSelect.value;
+    const apiKey = apiKeyInput.value.trim();
+
+    if (!apiKey) {
+        setStatus('API Key를 입력해 주세요', 'error');
+        return;
+    }
+
+    chrome.storage.local.set({ embeddingModel: model, embeddingApiKey: apiKey }, () => {
+        setStatus('설정이 저장되었습니다', 'success');
+        // 패널 닫기
+        setTimeout(() => {
+            settingsOpen = false;
+            settingsPanel.classList.add('collapsed-panel');
+            settingsToggleBtn.classList.remove('active');
+        }, 900);
+    });
+});
+
 // ==================== 검색창 X 버튼 ====================
 const searchInput = document.getElementById('searchInput');
-const clearBtn = document.getElementById('clearBtn');
+const clearBtn    = document.getElementById('clearBtn');
 
 searchInput.addEventListener('input', () => {
     clearBtn.style.display = searchInput.value.length > 0 ? 'block' : 'none';
@@ -44,7 +95,6 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT_TEXTS' }, (response) => {
         if (response?.success) {
             setStatus(`저장 완료 (${response.saved}개 청크)`, 'success');
-            // 목록이 열려 있으면 갱신
             if (listOpen) loadVideoList(tab);
         } else {
             setStatus(response?.error ?? '오류 발생', 'error');
@@ -80,7 +130,6 @@ document.getElementById('searchBtn').addEventListener('click', async () => {
                 <div class="result-snippet">${r.text}</div>
                 <div class="result-score">유사도 ${(r.score * 100).toFixed(1)}%</div>
             `;
-            // 검색 결과 클릭
             item.addEventListener('click', () => {
                 const url = r.startTime != null
                     ? `https://www.youtube.com/watch?v=${r.videoId}&t=${r.startTime}`
@@ -95,8 +144,8 @@ document.getElementById('searchBtn').addEventListener('click', async () => {
 // ==================== 목록 토글 ====================
 let listOpen = false;
 
-const listBtn = document.getElementById('listBtn');
-const listWrap = document.getElementById('videoListWrap');
+const listBtn     = document.getElementById('listBtn');
+const listWrap    = document.getElementById('videoListWrap');
 const listChevron = document.getElementById('listChevron');
 
 listBtn.addEventListener('click', async () => {
@@ -112,7 +161,7 @@ listBtn.addEventListener('click', async () => {
 
 // ==================== 목록 불러오기 ====================
 function loadVideoList(tab) {
-    const container = document.getElementById('videoList');
+    const container   = document.getElementById('videoList');
     const clearAllBtn = document.getElementById('clearAllBtn');
     container.innerHTML = '<div class="empty-msg">불러오는 중…</div>';
 
@@ -136,7 +185,6 @@ function loadVideoList(tab) {
         }
 
         clearAllBtn.style.display = 'block';
-
         videos.forEach(video => {
             container.appendChild(buildVideoItem(video, tab, container, clearAllBtn));
         });
@@ -161,12 +209,10 @@ function buildVideoItem(video, tab, container, clearAllBtn) {
         </div>
     `;
 
-    // 제목 클릭 → 탭 열기
     item.querySelector('.video-info').addEventListener('click', () => {
         chrome.tabs.create({ url: video.url });
     });
 
-    // URL 복사
     item.querySelector('.copy-btn').addEventListener('click', async (e) => {
         e.stopPropagation();
         try {
@@ -183,7 +229,6 @@ function buildVideoItem(video, tab, container, clearAllBtn) {
         }
     });
 
-    // 삭제
     item.querySelector('.delete-btn').addEventListener('click', (e) => {
         e.stopPropagation();
         chrome.tabs.sendMessage(tab.id, { type: 'DELETE_VIDEO', videoId: video.videoId }, (res) => {
@@ -207,8 +252,8 @@ document.getElementById('clearAllBtn').addEventListener('click', async () => {
     const confirmed = confirm('저장된 영상을 모두 삭제할까요?');
     if (!confirmed) return;
 
-    const tab = await getTab();
-    const container = document.getElementById('videoList');
+    const tab         = await getTab();
+    const container   = document.getElementById('videoList');
     const clearAllBtn = document.getElementById('clearAllBtn');
 
     chrome.tabs.sendMessage(tab.id, { type: 'CLEAR_ALL_VIDEOS' }, (res) => {

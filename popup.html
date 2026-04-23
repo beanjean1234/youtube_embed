@@ -19,7 +19,62 @@
                 </svg>
             </div>
             <h1 class="brand-title">YT Memory</h1>
+            <!-- 기어 아이콘 (설정 토글) -->
+            <button id="settingsToggleBtn" class="btn-icon-header" aria-label="설정" title="설정">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+            </button>
         </header>
+
+        <!-- ★ 설정 패널 -->
+        <section id="settingsPanel" class="card glass-panel settings-panel collapsed-panel">
+            <div class="card-header">
+                <h2 class="card-title">⚙ 임베딩 설정</h2>
+            </div>
+
+            <!-- 모델 선택 -->
+            <div class="field-group">
+                <label class="field-label" for="modelSelect">임베딩 모델</label>
+                <div class="select-wrapper">
+                    <select id="modelSelect" class="custom-select">
+                        <optgroup label="OpenAI">
+                            <option value="openai::text-embedding-3-small">text-embedding-3-small  (빠름 · 저렴)</option>
+                            <option value="openai::text-embedding-3-large">text-embedding-3-large  (고정밀)</option>
+                            <option value="openai::text-embedding-ada-002">text-embedding-ada-002  (구버전)</option>
+                        </optgroup>
+                        <optgroup label="Google">
+                            <option value="google::text-embedding-004">text-embedding-004</option>
+                        </optgroup>
+                    </select>
+                    <svg class="select-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                        <path d="M6 9l6 6 6-6"/>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- API 키 입력 -->
+            <div class="field-group">
+                <label class="field-label" for="apiKeyInput">API Key</label>
+                <div class="api-key-wrapper">
+                    <input id="apiKeyInput" type="password" class="api-key-input" placeholder="sk-... 또는 AIza..." autocomplete="off" spellcheck="false" />
+                    <button id="toggleKeyVisBtn" class="btn-eye" aria-label="키 보기/숨기기">
+                        <svg id="eyeIcon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 저장 버튼 -->
+            <button id="saveSettingsBtn" class="btn btn-primary">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+                </svg>
+                <span>설정 저장</span>
+            </button>
+        </section>
 
         <!-- 현재 영상 저장 섹션 -->
         <section class="card glass-panel">
@@ -74,11 +129,11 @@
                 </button>
             </div>
         </section>
-        
+
         <!-- 상태 표시 알림창 (Toast) -->
         <div id="status" class="status"></div>
     </div>
-    
+
     <script src="popup.js"></script>
 </body>
 </html>
