@@ -136,7 +136,6 @@ async function getEmbedding(text) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                model: `models/${modelName}`, // 본문에도 다시 명시 (필수인 경우가 있음)
                 taskType: "RETRIEVAL_DOCUMENT",
                 content: { parts: [{ text }] },
             }),
