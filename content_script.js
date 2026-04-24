@@ -45,16 +45,25 @@ async function getAllChunks(db) {
     });
 }
 
-// ==================== 청킹 ====================
-function makeChunks(texts, videoId, chunkSize = 20) {
+// ==================== 청킹 (정밀도 향상 버전) ====================
+function makeChunks(texts, videoId, chunkSize = 10, overlapSize = 5) {
     const chunks = [];
-    for (let i = 0; i < texts.length; i += chunkSize) {
+    const step = chunkSize - overlapSize; // 다음 청크까지 이동할 거리
+
+    for (let i = 0; i < texts.length; i += step) {
         const slice = texts.slice(i, i + chunkSize);
+
+        // 최소한의 의미를 가질 수 있도록 3줄 이하의 너무 짧은 조각은 건너뜀 (마지막 부분)
+        if (slice.length < 3 && i !== 0) break;
+
         chunks.push({
             videoId,
             text: slice.join(' '),
-            index: Math.floor(i / chunkSize),
+            index: Math.floor(i / step),
         });
+
+        // 원본 데이터 끝에 도달하면 종료
+        if (i + chunkSize >= texts.length) break;
     }
     return chunks;
 }
@@ -64,76 +73,92 @@ function loadSettings() {
     return new Promise((resolve) => {
         chrome.storage.local.get(['embeddingModel', 'embeddingApiKey'], (data) => {
             resolve({
-                model:  data.embeddingModel  ?? 'openai::text-embedding-3-small',
+                model: data.embeddingModel ?? 'google::embedding-001',
                 apiKey: data.embeddingApiKey ?? '',
             });
         });
     });
 }
 
-// ==================== 임베딩 API 호출 ====================
+// ==================== Gemini 요약 분석 API (1.5 Flash) ====================
+async function summarizeText(text) {
+    const { apiKey } = await loadSettings();
+    if (!apiKey) throw new Error('Gemini API Key가 필요합니다.');
+
+    // 최상위 수준의 상세 분석 지시문 (고정)
+    const promptInstruction = `다음 유튜브 쇼츠 자막을 아주 상세하게 분석해줘. 
+내용은 검색에 최적화되도록 다음 요소들을 포함해서 5~6문장 내외로 작성해줘:
+1. 영상의 전반적인 분위기와 말하는 이의 명확한 의도
+2. 언급된 핵심 주장, 사실 관계 및 구체적인 정보
+3. 영상에서 강조된 특별한 하이라이트나 결론
+4. 검색 색인 완성도를 높이기 위한 관련 키워드 및 태그 10개 이상`;
+
+    const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{ text: `${promptInstruction}\n\n[자막 내용]:\n${text}` }]
+                }]
+            }),
+        }
+    );
+
+    if (!res.ok) {
+        throw new Error('요약 생성 중 오류가 발생했습니다.');
+    }
+
+    const data = await res.json();
+    return data.candidates[0].content.parts[0].text;
+}
+
+// ==================== 임베딩 API 호출 (Gemini 전용) ====================
 async function getEmbedding(text) {
     const { model, apiKey } = await loadSettings();
 
     if (!apiKey) {
-        throw new Error('API Key가 설정되지 않았습니다. 팝업의 ⚙ 설정에서 API Key를 입력해 주세요.');
+        throw new Error('Gemini API Key가 설정되지 않았습니다. 팝업 설정에서 API Key를 입력해 주세요.');
     }
 
-    // model 값 형식: "provider::modelName"
-    const [provider, modelName] = model.split('::');
+    // model 값 형식: "google::modelName"
+    let [provider, modelName] = model.split('::');
 
-    // ── OpenAI ──
-    if (provider === 'openai') {
-        const res = await fetch('https://api.openai.com/v1/embeddings', {
+    // [강제 전환 로직] 오류가 발생하는 004 모델을 발견하면 자동으로 001로 교체
+    if (modelName === 'text-embedding-004') {
+        modelName = 'embedding-001';
+    }
+
+    if (provider !== 'google') {
+        throw new Error(`지원되지 않는 모델 형식입니다: ${provider}`);
+    }
+
+    const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:embedContent?key=${apiKey}`,
+        {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`,
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                input: text,
-                model: modelName,
+                model: `models/${modelName}`, // 본문에도 다시 명시 (필수인 경우가 있음)
+                taskType: "RETRIEVAL_DOCUMENT",
+                content: { parts: [{ text }] },
             }),
-        });
-
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(`OpenAI 오류: ${err?.error?.message ?? res.statusText}`);
         }
+    );
 
-        const data = await res.json();
-        return data.data[0].embedding;
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(`Google Gemini 오류: ${err?.error?.message ?? res.statusText}`);
     }
 
-    // ── Google Generative Language ──
-    if (provider === 'google') {
-        const res = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:embedContent?key=${apiKey}`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    model: `models/${modelName}`,
-                    content: { parts: [{ text }] },
-                }),
-            }
-        );
-
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(`Google 오류: ${err?.error?.message ?? res.statusText}`);
-        }
-
-        const data = await res.json();
-        return data.embedding.values;
-    }
-
-    throw new Error(`알 수 없는 provider: ${provider}`);
+    const data = await res.json();
+    return data.embedding.values;
 }
 
 // ==================== 코사인 유사도 ====================
 function cosineSimilarity(a, b) {
-    const dot   = a.reduce((sum, val, i) => sum + val * b[i], 0);
+    const dot = a.reduce((sum, val, i) => sum + val * b[i], 0);
     const normA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0));
     const normB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0));
     return dot / (normA * normB);
@@ -170,12 +195,33 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     return;
                 }
 
-                const url     = window.location.href;
-                const videoId = new URLSearchParams(window.location.search).get('v');
-                const title   = document.querySelector('h1.ytd-video-primary-info-renderer')?.textContent?.trim()
-                              || document.title;
+                const url = window.location.href;
+                const isShort = url.includes('/shorts/');
+                const videoId = isShort
+                    ? url.split('/shorts/')[1].split('?')[0] // 쇼츠용 ID 추출
+                    : new URLSearchParams(window.location.search).get('v');
 
-                const rawChunks = makeChunks(texts, videoId);
+                const title = document.querySelector('h1.ytd-video-primary-info-renderer')?.textContent?.trim()
+                    || document.title;
+
+                // ── 쇼츠 특화 로직: AI 요약 추가 ──
+                let processedTexts = [...texts];
+                if (isShort) {
+                    console.log("[YT Memory] Shorts detected. Analyzing with Gemini 1.5 Flash...");
+                    try {
+                        const fullScript = texts.join(' ');
+                        const summary = await summarizeText(fullScript);
+                        processedTexts = [`[AI Context: ${summary}]`, ...texts];
+                    } catch (e) {
+                        console.error("Summary failed, continuing with raw script", e);
+                    }
+                }
+
+                // ── 청크 생성 ──
+                const chunkSize = isShort ? 7 : 10;
+                const overlap = isShort ? 4 : 5;
+                const rawChunks = makeChunks(processedTexts, videoId, chunkSize, overlap);
+
                 const db = await openDB();
                 await saveVideo(db, videoId, url, title);
 
@@ -232,10 +278,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             try {
                 const db = await openDB();
                 const videos = await new Promise((resolve, reject) => {
-                    const tx  = db.transaction('videos', 'readonly');
+                    const tx = db.transaction('videos', 'readonly');
                     const req = tx.objectStore('videos').getAll();
                     req.onsuccess = () => resolve(req.result);
-                    req.onerror   = () => reject(req.error);
+                    req.onerror = () => reject(req.error);
                 });
                 videos.sort((a, b) => b.savedAt - a.savedAt);
                 sendResponse({ success: true, videos });
@@ -256,10 +302,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     const tx = db.transaction('videos', 'readwrite');
                     tx.objectStore('videos').delete(message.videoId);
                     tx.oncomplete = resolve;
-                    tx.onerror    = () => reject(tx.error);
+                    tx.onerror = () => reject(tx.error);
                 });
                 await new Promise((resolve, reject) => {
-                    const tx    = db.transaction('chunks', 'readwrite');
+                    const tx = db.transaction('chunks', 'readwrite');
                     const index = tx.objectStore('chunks').index('videoId');
                     const range = IDBKeyRange.only(message.videoId);
                     index.openCursor(range).onsuccess = (e) => {
@@ -267,7 +313,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         if (cursor) { cursor.delete(); cursor.continue(); }
                     };
                     tx.oncomplete = resolve;
-                    tx.onerror    = () => reject(tx.error);
+                    tx.onerror = () => reject(tx.error);
                 });
                 sendResponse({ success: true });
             } catch (err) {
@@ -278,23 +324,37 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
 
-    // --- 전체 영상 삭제 ---
+    // --- 전체 영상 삭제 (강력한 초기화 버전) ---
     if (message.type === 'CLEAR_ALL_VIDEOS') {
         (async () => {
             try {
-                const db = await openDB();
+                // 1. 기존 데이터베이스 연결 시도 및 종료
+                // (열려있는 연결이 있으면 삭제가 안 될 수 있으므로 close 시도)
+                try {
+                    const db = await openDB();
+                    db.close();
+                } catch (e) {
+                    // 이미 DB가 깨져있어서 못 열 수도 있으므로 여기 에러는 무시
+                }
+
+                // 2. 데이터베이스 자체를 완전히 삭제
                 await new Promise((resolve, reject) => {
-                    const tx = db.transaction('videos', 'readwrite');
-                    tx.objectStore('videos').clear();
-                    tx.oncomplete = resolve;
-                    tx.onerror    = () => reject(tx.error);
+                    const req = indexedDB.deleteDatabase('yt-memory');
+                    req.onsuccess = () => {
+                        console.log('[YT Memory] Database deleted successfully.');
+                        resolve();
+                    };
+                    req.onerror = (e) => reject(new Error('DB 삭제 실패: ' + e.target.error));
+                    req.onblocked = () => {
+                        // 다른 탭에서 DB를 열고 있을 때 발생. 사용자에게 안내가 필요할 수 있음.
+                        console.warn('[YT Memory] Delete blocked. Please close other YouTube tabs.');
+                        resolve(); // 일단 진행 시도
+                    };
                 });
-                await new Promise((resolve, reject) => {
-                    const tx = db.transaction('chunks', 'readwrite');
-                    tx.objectStore('chunks').clear();
-                    tx.oncomplete = resolve;
-                    tx.onerror    = () => reject(tx.error);
-                });
+
+                // 3. 다시 빈 DB를 열어서 스키마 초기화 (openDB가 내부적으로 upgradeneeded 발생시킴)
+                await openDB();
+
                 sendResponse({ success: true });
             } catch (err) {
                 console.error('[CLEAR_ALL_VIDEOS 오류]', err);
