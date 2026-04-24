@@ -197,7 +197,7 @@ toggleKeyVisBtn.addEventListener('click', () => {
 saveSettingsBtn.addEventListener('click', () => {
     const apiKey = apiKeyInput.value.trim();
     const lang = document.getElementById('languageSelect').value;
-    const model = 'google::embedding-001'; // 가장 호환성 높은 모델로 변경
+    const model = 'google::text-embedding-004';
 
     if (!apiKey) {
         const errorMsg = currentLang === 'ko' ? `Gemini API Key를 입력해 주세요` : `Please enter Gemini API Key`;
