@@ -73,7 +73,7 @@ function loadSettings() {
     return new Promise((resolve) => {
         chrome.storage.local.get(['embeddingModel', 'embeddingApiKey'], (data) => {
             resolve({
-                model: data.embeddingModel ?? 'google::embedding-001',
+                model: data.embeddingModel ?? 'google::text-embedding-004',
                 apiKey: data.embeddingApiKey ?? '',
             });
         });
@@ -125,10 +125,6 @@ async function getEmbedding(text) {
     // model 값 형식: "google::modelName"
     let [provider, modelName] = model.split('::');
 
-    // [강제 전환 로직] 오류가 발생하는 004 모델을 발견하면 자동으로 001로 교체
-    if (modelName === 'text-embedding-004') {
-        modelName = 'embedding-001';
-    }
 
     if (provider !== 'google') {
         throw new Error(`지원되지 않는 모델 형식입니다: ${provider}`);
