@@ -6,12 +6,6 @@ const setStatus = (msg, type = '') => {
     el.textContent = msg;
     el.className = 'status ' + type;
 
-    // 클릭 시 클립보드 복사 기능 추가
-    el.onclick = () => {
-        if (!el.textContent) return;
-        copyToClipboard(el.textContent, el);
-    };
-
     // 이전에 설정된 타이머가 있다면 취소
     if (statusTimeout) clearTimeout(statusTimeout);
 
@@ -26,22 +20,6 @@ const setStatus = (msg, type = '') => {
     }
 };
 
-// 텍스트 복사 공통 유틸리티
-const copyToClipboard = (text, targetEl) => {
-    navigator.clipboard.writeText(text).then(() => {
-        const originalText = targetEl.textContent;
-        const feedbackBtn = targetEl.tagName === 'BUTTON';
-
-        targetEl.textContent = currentLang === 'ko' ? '✓ 복사됨' : '✓ Copied';
-        if (!feedbackBtn) targetEl.style.color = '#10b981';
-
-        setTimeout(() => {
-            targetEl.textContent = originalText;
-            if (!feedbackBtn) targetEl.style.color = '';
-        }, 1000);
-    });
-};
-
 const getTab = () =>
     chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => tab);
 
@@ -49,11 +27,12 @@ const getTab = () =>
 const translations = {
     ko: {
         titleSettings: "임베딩 설정",
+        labelModel: "임베딩 모델",
         labelLanguage: "언어 (Language)",
         optAuto: "자동 감지 (Auto)",
-        labelApiKey: "Gemini API Key",
+        labelApiKey: "API Key",
         btnSaveSettings: "설정 저장",
-        btnExtract: "스크립트 추출",
+        btnExtract: "영상 내용 추출",
         titleSearch: "영상 내용 검색",
         placeholderSearch: "기억나는 내용 입력...",
         titleSavedMemory: "저장된 기록",
@@ -73,14 +52,15 @@ const translations = {
     },
     en: {
         titleSettings: "Settings",
+        labelModel: "Embedding Model",
         labelLanguage: "Language",
         optAuto: "Auto Detect",
-        labelApiKey: "Gemini API Key",
+        labelApiKey: "API Key",
         btnSaveSettings: "Save Settings",
-        btnExtract: "Extract Script",
+        btnExtract: "Extract Info",
         titleSearch: "Search Content",
         placeholderSearch: "Type what you remember...",
-        titleSavedMemory: "Saved Memory",
+        titleSavedMemory: "Saved Videos",
         btnClearAll: "Clear All Records",
         msgExtracting: "Extracting...",
         msgSaved: "Saved Successfully",
@@ -140,7 +120,6 @@ const settingsPanel = document.getElementById('settingsPanel');
 const apiKeyInput = document.getElementById('apiKeyInput');
 const toggleKeyVisBtn = document.getElementById('toggleKeyVisBtn');
 const saveSettingsBtn = document.getElementById('saveSettingsBtn');
-
 let originalSettings = { apiKey: '', lang: 'auto' };
 
 // 설정 변경 감지 함수
@@ -155,8 +134,8 @@ const checkSettingsChanged = () => {
 };
 
 // 저장된 설정 불러오기
-chrome.storage.local.get(['embeddingApiKey', 'appLanguage'], (data) => {
-    if (data.embeddingApiKey) apiKeyInput.value = data.embeddingApiKey;
+chrome.storage.local.get(['geminiApiKey', 'appLanguage'], (data) => {
+    apiKeyInput.value = data.geminiApiKey || '';
 
     if (data.appLanguage) {
         document.getElementById('languageSelect').value = data.appLanguage;
@@ -172,6 +151,7 @@ chrome.storage.local.get(['embeddingApiKey', 'appLanguage'], (data) => {
     };
 });
 
+// 입력 요소들 변경 감지 리스너
 apiKeyInput.addEventListener('input', checkSettingsChanged);
 document.getElementById('languageSelect').addEventListener('change', checkSettingsChanged);
 
@@ -197,7 +177,6 @@ toggleKeyVisBtn.addEventListener('click', () => {
 saveSettingsBtn.addEventListener('click', () => {
     const apiKey = apiKeyInput.value.trim();
     const lang = document.getElementById('languageSelect').value;
-    const model = 'google::text-embedding-004';
 
     if (!apiKey) {
         const errorMsg = currentLang === 'ko' ? `Gemini API Key를 입력해 주세요` : `Please enter Gemini API Key`;
@@ -205,12 +184,12 @@ saveSettingsBtn.addEventListener('click', () => {
         return;
     }
 
+    // Gemini 전용 키로 저장
     chrome.storage.local.set({
-        embeddingModel: model,
-        embeddingApiKey: apiKey,
+        geminiApiKey: apiKey,
         appLanguage: lang
     }, () => {
-        // 성공 시 현재 값을 새로운 원본으로 저장
+        // 메모리 업데이트
         originalSettings = { apiKey, lang };
         saveSettingsBtn.classList.remove('modified');
 
@@ -243,13 +222,26 @@ searchInput.addEventListener('keydown', e => {
 // ==================== 저장 ====================
 document.getElementById('saveBtn').addEventListener('click', async () => {
     const tab = await getTab();
+
+    // 유튜브 페이지인지 확인
+    if (!tab.url || !tab.url.includes('youtube.com')) {
+        setStatus(currentLang === 'ko' ? '유튜브 페이지에서만 추출할 수 있습니다.' : 'Can only extract on YouTube pages.', 'error');
+        return;
+    }
+
     setStatus(translations[currentLang].msgExtracting, 'loading');
 
+    // 탭으로 먼저 추출 요청 (content script)
     chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT_TEXTS' }, (response) => {
+        if (chrome.runtime.lastError) {
+            setStatus(currentLang === 'ko' ? '페이지를 새로고침한 뒤 다시 시도해주세요.' : 'Please refresh the page and try again.', 'error');
+            return;
+        }
+
         if (response?.success) {
             setStatus(`${translations[currentLang].msgSaved} (${response.saved})`, 'success');
-            // 목록 페이지가 열려 있다면 갱신
-            if (pageWrapper.classList.contains('show-list')) loadVideoList(tab);
+            // 목록 페이지가 열려 있다면 갱신 (백그라운드에서 다시 가져옴)
+            if (pageWrapper.classList.contains('show-list')) loadVideoList();
         } else {
             setStatus(response?.error ?? 'Error', 'error');
         }
@@ -261,11 +253,11 @@ document.getElementById('searchBtn').addEventListener('click', async () => {
     const query = searchInput.value.trim();
     if (!query) return;
 
-    const tab = await getTab();
     setStatus(translations[currentLang].msgSearching, 'loading');
     document.getElementById('results').innerHTML = '';
 
-    chrome.tabs.sendMessage(tab.id, { type: 'SEARCH', query }, (response) => {
+    // 검색은 백그라운드 스크립트로 전달
+    chrome.runtime.sendMessage({ type: 'SEARCH', query }, (response) => {
         if (!response?.success) {
             setStatus(response?.error ?? 'Error', 'error');
             return;
@@ -304,8 +296,7 @@ const pageWrapper = document.getElementById('pageWrapper');
 docsBtn.addEventListener('click', async () => {
     pageWrapper.classList.remove('show-settings'); // 설정이 열려있다면 닫음
     // 1. 목록 데이터를 먼저 불러옴 (높이 계산 준비)
-    const tab = await getTab();
-    loadVideoList(tab);
+    loadVideoList();
 
     // 2. 애니메이션 실행
     pageWrapper.classList.add('show-list');
@@ -317,20 +308,18 @@ backToMainBtn.addEventListener('click', () => {
 });
 
 // ==================== 목록 불러오기 ====================
-function loadVideoList(tab) {
+function loadVideoList() {
     const container = document.getElementById('videoList');
     const clearAllBtn = document.getElementById('clearAllBtn');
     container.innerHTML = `<div class="empty-msg">${translations[currentLang].msgLoading}</div>`;
 
-    chrome.tabs.sendMessage(tab.id, { type: 'GET_VIDEOS' }, (response) => {
+    // 백그라운드 스크립트로 전달
+    chrome.runtime.sendMessage({ type: 'GET_VIDEOS' }, (response) => {
         container.innerHTML = '';
 
         if (!response?.success) {
             container.innerHTML = `<div class="empty-msg">${translations[currentLang].msgFail}</div>`;
-            const msgEl = container.querySelector('.empty-msg');
-            msgEl.onclick = () => copyToClipboard(msgEl.textContent, msgEl);
-
-            clearAllBtn.style.display = 'block'; // 로딩 실패 시에도 복구를 위해 삭제 버튼 활성화
+            clearAllBtn.style.display = 'none';
             updateBadge(0);
             return;
         }
@@ -346,13 +335,13 @@ function loadVideoList(tab) {
 
         clearAllBtn.style.display = 'block';
         videos.forEach(video => {
-            container.appendChild(buildVideoItem(video, tab, container, clearAllBtn));
+            container.appendChild(buildVideoItem(video, container, clearAllBtn));
         });
     });
 }
 
 // ==================== 영상 아이템 생성 ====================
-function buildVideoItem(video, tab, container, clearAllBtn) {
+function buildVideoItem(video, container, clearAllBtn) {
     const date = new Date(video.savedAt).toLocaleDateString('ko-KR');
     const item = document.createElement('div');
     item.className = 'video-item';
@@ -410,7 +399,7 @@ function buildVideoItem(video, tab, container, clearAllBtn) {
 
     item.querySelector('.delete-btn').addEventListener('click', (e) => {
         e.stopPropagation();
-        chrome.tabs.sendMessage(tab.id, { type: 'DELETE_VIDEO', videoId: video.videoId }, (res) => {
+        chrome.runtime.sendMessage({ type: 'DELETE_VIDEO', videoId: video.videoId }, (res) => {
             if (res?.success) {
                 item.remove();
                 const remaining = container.querySelectorAll('.video-item').length;
@@ -431,11 +420,10 @@ document.getElementById('clearAllBtn').addEventListener('click', async () => {
     const confirmed = confirm(translations[currentLang].confirmDeleteAll);
     if (!confirmed) return;
 
-    const tab = await getTab();
     const container = document.getElementById('videoList');
     const clearAllBtn = document.getElementById('clearAllBtn');
 
-    chrome.tabs.sendMessage(tab.id, { type: 'CLEAR_ALL_VIDEOS' }, (res) => {
+    chrome.runtime.sendMessage({ type: 'CLEAR_ALL_VIDEOS' }, (res) => {
         if (res?.success) {
             container.innerHTML = `<div class="empty-msg">${translations[currentLang].msgEmpty}</div>`;
             clearAllBtn.style.display = 'none';

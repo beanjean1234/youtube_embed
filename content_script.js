@@ -1,47 +1,9 @@
-// ==================== IndexedDB ====================
-function openDB() {
-    return new Promise((resolve, reject) => {
-        const req = indexedDB.open('yt-memory', 1);
-        req.onupgradeneeded = (e) => {
-            const db = e.target.result;
-            if (!db.objectStoreNames.contains('videos')) {
-                db.createObjectStore('videos', { keyPath: 'videoId' });
-            }
-            if (!db.objectStoreNames.contains('chunks')) {
-                const store = db.createObjectStore('chunks', { keyPath: 'id', autoIncrement: true });
-                store.createIndex('videoId', 'videoId');
-            }
-        };
-        req.onsuccess = (e) => resolve(e.target.result);
-        req.onerror = () => reject(req.error);
-    });
-}
-
-async function saveVideo(db, videoId, url, title) {
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction('videos', 'readwrite');
-        tx.objectStore('videos').put({ videoId, url, title, savedAt: Date.now() });
-        tx.oncomplete = resolve;
-        tx.onerror = () => reject(tx.error);
-    });
-}
-
-async function saveChunks(db, chunks) {
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction('chunks', 'readwrite');
-        const store = tx.objectStore('chunks');
-        chunks.forEach(chunk => store.add(chunk));
-        tx.oncomplete = resolve;
-        tx.onerror = () => reject(tx.error);
-    });
-}
-
-async function getAllChunks(db) {
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction('chunks', 'readonly');
-        const req = tx.objectStore('chunks').getAll();
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
+// ==================== 설정 로드 ====================
+function loadSettings() {
+    return new Promise((resolve) => {
+        chrome.storage.local.get(['geminiApiKey'], (data) => {
+            resolve({ apiKey: data.geminiApiKey || '' });
+        });
     });
 }
 
@@ -52,7 +14,7 @@ function makeChunks(texts, videoId, chunkSize = 10, overlapSize = 5) {
 
     for (let i = 0; i < texts.length; i += step) {
         const slice = texts.slice(i, i + chunkSize);
-
+        
         // 최소한의 의미를 가질 수 있도록 3줄 이하의 너무 짧은 조각은 건너뜀 (마지막 부분)
         if (slice.length < 3 && i !== 0) break;
 
@@ -68,103 +30,122 @@ function makeChunks(texts, videoId, chunkSize = 10, overlapSize = 5) {
     return chunks;
 }
 
-// ==================== 설정 로드 ====================
-function loadSettings() {
-    return new Promise((resolve) => {
-        chrome.storage.local.get(['embeddingModel', 'embeddingApiKey'], (data) => {
-            resolve({
-                model: data.embeddingModel ?? 'google::text-embedding-004',
-                apiKey: data.embeddingApiKey ?? '',
-            });
-        });
-    });
-}
 
-// ==================== Gemini 요약 분석 API (1.5 Flash) ====================
-async function summarizeText(text) {
+
+// ==================== [신규] 배치 임베딩 API 호출 ====================
+async function getBatchEmbeddings(texts) {
     const { apiKey } = await loadSettings();
-    if (!apiKey) throw new Error('Gemini API Key가 필요합니다.');
+    if (!apiKey) throw new Error('API Key가 없습니다.');
 
-    // 최상위 수준의 상세 분석 지시문 (고정)
-    const promptInstruction = `다음 유튜브 쇼츠 자막을 아주 상세하게 분석해줘. 
-내용은 검색에 최적화되도록 다음 요소들을 포함해서 5~6문장 내외로 작성해줘:
-1. 영상의 전반적인 분위기와 말하는 이의 명확한 의도
-2. 언급된 핵심 주장, 사실 관계 및 구체적인 정보
-3. 영상에서 강조된 특별한 하이라이트나 결론
-4. 검색 색인 완성도를 높이기 위한 관련 키워드 및 태그 10개 이상`;
+    // 텍스트 조각들을 API 형식에 맞게 변환
+    const requests = texts.map(text => ({
+        model: `models/gemini-embedding-2`,
+        content: { parts: [{ text }] }
+    }));
 
     const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:batchEmbedContents?key=${apiKey}`,
         {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{ text: `${promptInstruction}\n\n[자막 내용]:\n${text}` }]
-                }]
-            }),
-        }
-    );
-
-    if (!res.ok) {
-        throw new Error('요약 생성 중 오류가 발생했습니다.');
-    }
-
-    const data = await res.json();
-    return data.candidates[0].content.parts[0].text;
-}
-
-// ==================== 임베딩 API 호출 (Gemini 전용) ====================
-async function getEmbedding(text) {
-    const { model, apiKey } = await loadSettings();
-
-    if (!apiKey) {
-        throw new Error('Gemini API Key가 설정되지 않았습니다. 팝업 설정에서 API Key를 입력해 주세요.');
-    }
-
-    // model 값 형식: "google::modelName"
-    let [provider, modelName] = model.split('::');
-
-
-    if (provider !== 'google') {
-        throw new Error(`지원되지 않는 모델 형식입니다: ${provider}`);
-    }
-
-    const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:embedContent?key=${apiKey}`,
-        {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                taskType: "RETRIEVAL_DOCUMENT",
-                content: { parts: [{ text }] },
-            }),
+            body: JSON.stringify({ requests })
         }
     );
 
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(`Google Gemini 오류: ${err?.error?.message ?? res.statusText}`);
+        throw new Error(`Batch 임베딩 오류: ${err?.error?.message ?? res.statusText}`);
     }
 
     const data = await res.json();
-    return data.embedding.values;
+    // 결과값만 추출해서 반환
+    return data.embeddings.map(e => e.values);
 }
 
-// ==================== 코사인 유사도 ====================
-function cosineSimilarity(a, b) {
-    const dot = a.reduce((sum, val, i) => sum + val * b[i], 0);
-    const normA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0));
-    const normB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0));
-    return dot / (normA * normB);
+// ==================== Shorts 분석 API 호출 ====================
+async function analyzeShortsWithGemini(url, apiKey) {
+    const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [
+                    {
+                        role: 'user',
+                        parts: [{ text: `다음 YouTube Shorts 영상을 상세하게 분석하고 내용을 설명해 줘. URL: ${url}` }]
+                    }
+                ]
+            })
+        }
+    );
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(`Shorts 분석 오류: ${err?.error?.message ?? res.statusText}`);
+    }
+
+    const data = await res.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
+
+
 
 // ==================== 메시지 리스너 ====================
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     // --- 스크립트 추출 & 저장 ---
     if (message.type === 'EXTRACT_TEXTS') {
+        const url = window.location.href;
 
+        // 1. Shorts 영상 분기 처리
+        if (url.includes('/shorts/')) {
+            (async () => {
+                try {
+                    const videoId = url.split('/shorts/')[1].split(/[?#]/)[0];
+                    const title = document.title;
+                    const { apiKey } = await loadSettings();
+
+                    if (!apiKey) throw new Error('API Key가 설정되지 않았습니다.');
+
+                    const analysisText = await analyzeShortsWithGemini(url, apiKey);
+                    if (!analysisText) {
+                        sendResponse({ success: false, error: 'Shorts 분석 결과를 가져오지 못했습니다.' });
+                        return;
+                    }
+
+                    const lines = analysisText.split('\n').filter(l => l.trim() !== '');
+                    const rawChunks = makeChunks(lines, videoId, 5, 2);
+                    
+                    // --- [개선] 배치 임베딩 적용 ---
+                    const embeddings = await getBatchEmbeddings(rawChunks.map(c => c.text));
+                    const embeddedChunks = rawChunks.map((chunk, i) => ({
+                        ...chunk,
+                        embedding: embeddings[i],
+                        url,
+                        title
+                    }));
+
+                    // 백그라운드 스크립트로 전송하여 저장
+                    chrome.runtime.sendMessage({
+                        type: 'SAVE_EMBEDDINGS',
+                        videoId,
+                        url,
+                        title,
+                        chunks: embeddedChunks
+                    }, (response) => {
+                        sendResponse(response);
+                    });
+
+                } catch (err) {
+                    console.error('[SHORTS EXTRACT 오류]', err);
+                    sendResponse({ success: false, error: err.message });
+                }
+            })();
+            return true;
+        }
+
+        // 2. 일반 영상 스크립트 추출 로직
         const panel = document.querySelector(
             'ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"]'
         );
@@ -190,44 +171,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     return;
                 }
 
-                const url = window.location.href;
-                const isShort = url.includes('/shorts/');
-                const videoId = isShort
-                    ? url.split('/shorts/')[1].split('?')[0] // 쇼츠용 ID 추출
-                    : new URLSearchParams(window.location.search).get('v');
+                const url     = window.location.href;
+                const videoId = new URLSearchParams(window.location.search).get('v');
+                const title   = document.querySelector('h1.ytd-video-primary-info-renderer')?.textContent?.trim()
+                              || document.title;
 
-                const title = document.querySelector('h1.ytd-video-primary-info-renderer')?.textContent?.trim()
-                    || document.title;
+                const rawChunks = makeChunks(texts, videoId);
+                // --- [개선] 배치 임베딩 적용 ---
+                const embeddings = await getBatchEmbeddings(rawChunks.map(c => c.text));
+                const embeddedChunks = rawChunks.map((chunk, i) => ({
+                    ...chunk,
+                    embedding: embeddings[i],
+                    url,
+                    title
+                }));
 
-                // ── 쇼츠 특화 로직: AI 요약 추가 ──
-                let processedTexts = [...texts];
-                if (isShort) {
-                    console.log("[YT Memory] Shorts detected. Analyzing with Gemini 1.5 Flash...");
-                    try {
-                        const fullScript = texts.join(' ');
-                        const summary = await summarizeText(fullScript);
-                        processedTexts = [`[AI Context: ${summary}]`, ...texts];
-                    } catch (e) {
-                        console.error("Summary failed, continuing with raw script", e);
-                    }
-                }
-
-                // ── 청크 생성 ──
-                const chunkSize = isShort ? 7 : 10;
-                const overlap = isShort ? 4 : 5;
-                const rawChunks = makeChunks(processedTexts, videoId, chunkSize, overlap);
-
-                const db = await openDB();
-                await saveVideo(db, videoId, url, title);
-
-                const embeddedChunks = [];
-                for (const chunk of rawChunks) {
-                    const embedding = await getEmbedding(chunk.text);
-                    embeddedChunks.push({ ...chunk, embedding, url, title });
-                }
-
-                await saveChunks(db, embeddedChunks);
-                sendResponse({ success: true, saved: embeddedChunks.length });
+                // 백그라운드 스크립트로 전송하여 저장
+                chrome.runtime.sendMessage({
+                    type: 'SAVE_EMBEDDINGS',
+                    videoId,
+                    url,
+                    title,
+                    chunks: embeddedChunks
+                }, (response) => {
+                    sendResponse(response);
+                });
 
             } catch (err) {
                 console.error('[EXTRACT_TEXTS 오류]', err);
@@ -238,125 +206,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
 
-    // --- 검색 ---
-    if (message.type === 'SEARCH') {
-        (async () => {
-            try {
-                const queryEmbedding = await getEmbedding(message.query);
-                const db = await openDB();
-                const allChunks = await getAllChunks(db);
 
-                const scored = allChunks
-                    .map(chunk => ({
-                        ...chunk,
-                        score: cosineSimilarity(queryEmbedding, chunk.embedding),
-                    }))
-                    .sort((a, b) => b.score - a.score)
-                    .filter((chunk, index, arr) =>
-                        arr.findIndex(c => c.videoId === chunk.videoId) === index
-                    )
-                    .slice(0, 5);
-
-                sendResponse({ success: true, results: scored });
-
-            } catch (err) {
-                console.error('[SEARCH 오류]', err);
-                sendResponse({ success: false, error: err.message });
-            }
-        })();
-        return true;
-    }
-
-    // --- 저장된 영상 목록 조회 ---
-    if (message.type === 'GET_VIDEOS') {
-        (async () => {
-            try {
-                const db = await openDB();
-                const videos = await new Promise((resolve, reject) => {
-                    const tx = db.transaction('videos', 'readonly');
-                    const req = tx.objectStore('videos').getAll();
-                    req.onsuccess = () => resolve(req.result);
-                    req.onerror = () => reject(req.error);
-                });
-                videos.sort((a, b) => b.savedAt - a.savedAt);
-                sendResponse({ success: true, videos });
-            } catch (err) {
-                console.error('[GET_VIDEOS 오류]', err);
-                sendResponse({ success: false, error: err.message });
-            }
-        })();
-        return true;
-    }
-
-    // --- 특정 영상 삭제 ---
-    if (message.type === 'DELETE_VIDEO') {
-        (async () => {
-            try {
-                const db = await openDB();
-                await new Promise((resolve, reject) => {
-                    const tx = db.transaction('videos', 'readwrite');
-                    tx.objectStore('videos').delete(message.videoId);
-                    tx.oncomplete = resolve;
-                    tx.onerror = () => reject(tx.error);
-                });
-                await new Promise((resolve, reject) => {
-                    const tx = db.transaction('chunks', 'readwrite');
-                    const index = tx.objectStore('chunks').index('videoId');
-                    const range = IDBKeyRange.only(message.videoId);
-                    index.openCursor(range).onsuccess = (e) => {
-                        const cursor = e.target.result;
-                        if (cursor) { cursor.delete(); cursor.continue(); }
-                    };
-                    tx.oncomplete = resolve;
-                    tx.onerror = () => reject(tx.error);
-                });
-                sendResponse({ success: true });
-            } catch (err) {
-                console.error('[DELETE_VIDEO 오류]', err);
-                sendResponse({ success: false, error: err.message });
-            }
-        })();
-        return true;
-    }
-
-    // --- 전체 영상 삭제 (강력한 초기화 버전) ---
-    if (message.type === 'CLEAR_ALL_VIDEOS') {
-        (async () => {
-            try {
-                // 1. 기존 데이터베이스 연결 시도 및 종료
-                // (열려있는 연결이 있으면 삭제가 안 될 수 있으므로 close 시도)
-                try {
-                    const db = await openDB();
-                    db.close();
-                } catch (e) {
-                    // 이미 DB가 깨져있어서 못 열 수도 있으므로 여기 에러는 무시
-                }
-
-                // 2. 데이터베이스 자체를 완전히 삭제
-                await new Promise((resolve, reject) => {
-                    const req = indexedDB.deleteDatabase('yt-memory');
-                    req.onsuccess = () => {
-                        console.log('[YT Memory] Database deleted successfully.');
-                        resolve();
-                    };
-                    req.onerror = (e) => reject(new Error('DB 삭제 실패: ' + e.target.error));
-                    req.onblocked = () => {
-                        // 다른 탭에서 DB를 열고 있을 때 발생. 사용자에게 안내가 필요할 수 있음.
-                        console.warn('[YT Memory] Delete blocked. Please close other YouTube tabs.');
-                        resolve(); // 일단 진행 시도
-                    };
-                });
-
-                // 3. 다시 빈 DB를 열어서 스키마 초기화 (openDB가 내부적으로 upgradeneeded 발생시킴)
-                await openDB();
-
-                sendResponse({ success: true });
-            } catch (err) {
-                console.error('[CLEAR_ALL_VIDEOS 오류]', err);
-                sendResponse({ success: false, error: err.message });
-            }
-        })();
-        return true;
-    }
 
 }); // ← 리스너 닫는 괄호

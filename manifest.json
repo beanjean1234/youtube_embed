@@ -17,6 +17,10 @@
     "icons": {
         "128": "icon.png"
     },
+    "background": {
+        "service_worker": "background.js",
+        "type": "module"
+    },
     "content_scripts": [
         {
             "matches": [
