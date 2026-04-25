@@ -2,7 +2,7 @@
 let statusTimeout = null;
 
 const setStatus = (msg, type = '') => {
-    const el = document.getElementById('status');
+    const el = document.getElementById('statusMessage');
     el.textContent = msg;
     el.className = 'status ' + type;
 
@@ -30,13 +30,15 @@ const translations = {
         labelModel: "임베딩 모델",
         labelLanguage: "언어 (Language)",
         optAuto: "자동 감지 (Auto)",
-        labelApiKey: "API Key",
+        labelApiKey: "Gemini API Key",
+        linkGetApiKey: "API key 발급",
         btnSaveSettings: "설정 저장",
         btnExtract: "영상 내용 추출",
-        titleSearch: "영상 내용 검색",
-        placeholderSearch: "기억나는 내용 입력...",
+        titleSearch: "원하는 영상을 검색해보세요",
+        descSearch: "영상에서 기억나는 부분을 검색하거나\n영상의 주제 등을 검색해보세요.",
+        placeholderSearch: "검색어를 입력하세요",
         titleSavedMemory: "저장된 기록",
-        btnClearAll: "전체 기록 삭제",
+        btnClearAll: "전체 삭제",
         msgExtracting: "추출 중...",
         msgSaved: "저장 완료",
         msgSearching: "검색 중...",
@@ -55,13 +57,15 @@ const translations = {
         labelModel: "Embedding Model",
         labelLanguage: "Language",
         optAuto: "Auto Detect",
-        labelApiKey: "API Key",
+        labelApiKey: "Gemini API Key",
+        linkGetApiKey: "Get API key",
         btnSaveSettings: "Save Settings",
-        btnExtract: "Extract Info",
-        titleSearch: "Search Content",
-        placeholderSearch: "Type what you remember...",
-        titleSavedMemory: "Saved Videos",
-        btnClearAll: "Clear All Records",
+        btnExtract: "Extract Video Info",
+        titleSearch: "Search for videos",
+        descSearch: "Search for parts you remember\nor the topic of the video.",
+        placeholderSearch: "Enter search terms...",
+        titleSavedMemory: "Saved Records",
+        btnClearAll: "Clear All",
         msgExtracting: "Extracting...",
         msgSaved: "Saved Successfully",
         msgSearching: "Searching...",
@@ -70,7 +74,7 @@ const translations = {
         msgLoading: "Loading...",
         msgFail: "Failed to load",
         msgSettingsSaved: "Settings Saved",
-        confirmDeleteAll: "Clear all saved videos?",
+        confirmDeleteAll: "Clear all saved records?",
         btnCopy: "Copy URL",
         btnDelete: "Delete",
         scoreLabel: "Sim."
@@ -198,28 +202,43 @@ saveSettingsBtn.addEventListener('click', () => {
     });
 });
 
-// ==================== 검색창 X 버튼 ====================
+// ==================== 검색 로직 ====================
 const searchInput = document.getElementById('searchInput');
-const clearBtn = document.getElementById('clearBtn');
+const clearSearchBtn = document.getElementById('clearSearchBtn');
+const mainEmptyState = document.getElementById('mainEmptyState');
+const resultsContainer = document.getElementById('results');
 
-searchInput.addEventListener('input', () => {
-    clearBtn.style.display = searchInput.value.length > 0 ? 'block' : 'none';
+searchInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+        performSearch();
+    }
 });
 
-clearBtn.addEventListener('click', () => {
+searchInput.addEventListener('input', () => {
+    const query = searchInput.value.trim();
+    
+    // 지우기 버튼 표시 여부
+    clearSearchBtn.style.display = query.length > 0 ? 'block' : 'none';
+
+    if (query.length === 0) {
+        mainEmptyState.style.display = 'flex';
+        resultsContainer.style.display = 'none';
+        resultsContainer.innerHTML = '';
+        setStatus('');
+    }
+});
+
+clearSearchBtn.addEventListener('click', () => {
     searchInput.value = '';
-    clearBtn.style.display = 'none';
-    document.getElementById('results').innerHTML = '';
+    clearSearchBtn.style.display = 'none';
+    mainEmptyState.style.display = 'flex';
+    resultsContainer.style.display = 'none';
+    resultsContainer.innerHTML = '';
     setStatus('');
     searchInput.focus();
 });
 
-// ==================== Enter 키 검색 ====================
-searchInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter') document.getElementById('searchBtn').click();
-});
-
-// ==================== 저장 ====================
+// ==================== 추출(저장) ====================
 document.getElementById('saveBtn').addEventListener('click', async () => {
     const tab = await getTab();
 
@@ -240,7 +259,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
 
         if (response?.success) {
             setStatus(`${translations[currentLang].msgSaved} (${response.saved})`, 'success');
-            // 목록 페이지가 열려 있다면 갱신 (백그라운드에서 다시 가져옴)
+            // 목록 페이지가 열려 있다면 갱신
             if (pageWrapper.classList.contains('show-list')) loadVideoList();
         } else {
             setStatus(response?.error ?? 'Error', 'error');
@@ -248,13 +267,14 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     });
 });
 
-// ==================== 검색 ====================
-document.getElementById('searchBtn').addEventListener('click', async () => {
+async function performSearch() {
     const query = searchInput.value.trim();
     if (!query) return;
 
+    mainEmptyState.style.display = 'none';
+    resultsContainer.style.display = 'flex';
+    resultsContainer.innerHTML = '';
     setStatus(translations[currentLang].msgSearching, 'loading');
-    document.getElementById('results').innerHTML = '';
 
     // 검색은 백그라운드 스크립트로 전달
     chrome.runtime.sendMessage({ type: 'SEARCH', query }, (response) => {
@@ -264,7 +284,7 @@ document.getElementById('searchBtn').addEventListener('click', async () => {
         }
 
         setStatus(`${response.results.length}${translations[currentLang].msgResults}`, 'success');
-        const container = document.getElementById('results');
+        const container = resultsContainer;
 
         response.results.forEach(r => {
             const item = document.createElement('div');
@@ -274,7 +294,6 @@ document.getElementById('searchBtn').addEventListener('click', async () => {
                      style="width:100%;border-radius:7px;margin-bottom:7px;display:block;">
                 <div class="result-title">${r.title}</div>
                 <div class="result-snippet">${r.text}</div>
-                <div class="result-score">${translations[currentLang].scoreLabel} ${(r.score * 100).toFixed(1)}%</div>
             `;
             item.addEventListener('click', () => {
                 const url = r.startTime != null
@@ -285,11 +304,10 @@ document.getElementById('searchBtn').addEventListener('click', async () => {
             container.appendChild(item);
         });
     });
-});
+}
 
 // ==================== 페이지 전환 (슬라이드 애니메이션) ====================
 const docsBtn = document.getElementById('docsBtn');
-const backToMainBtn = document.getElementById('backToMainBtn');
 const pageWrapper = document.getElementById('pageWrapper');
 
 // 문서 아이콘 클릭 -> 목록 페이지로 이동
@@ -302,10 +320,12 @@ docsBtn.addEventListener('click', async () => {
     pageWrapper.classList.add('show-list');
 });
 
-// 뒤로가기 아이콘 클릭 -> 메인 페이지로 복귀
-backToMainBtn.addEventListener('click', () => {
-    pageWrapper.classList.remove('show-list');
-});
+// 뒤로가기 아이콘들 클릭 -> 메인 페이지로 복귀
+const goMain = () => {
+    pageWrapper.classList.remove('show-list', 'show-settings');
+};
+document.getElementById('backToMainFromSettings')?.addEventListener('click', goMain);
+document.getElementById('backToMainFromList')?.addEventListener('click', goMain);
 
 // ==================== 목록 불러오기 ====================
 function loadVideoList() {

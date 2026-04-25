@@ -3,168 +3,116 @@
 
 <head>
     <meta charset="UTF-8" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap"
-        rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Extension UI</title>
+    <!-- Google Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
-    <div class="noise-overlay"></div>
-
-    <div class="viewport">
-        <div id="pageWrapper" class="page-wrapper">
-
-            <!-- [왼쪽] 설정 페이지 -->
-            <div class="page settings-page">
-                <header class="header">
-                    <button id="backToMainFromSettings" class="btn-icon-header" aria-label="뒤로가기">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M15 18l-6-6 6-6" />
-                        </svg>
-                    </button>
-                    <h1 class="brand-title" data-i18n="titleSettings">Settings</h1>
-                </header>
-
-                <div class="page-content">
-                    <section class="card">
-                        <div class="field-group">
-                            <label class="field-label" for="languageSelect" data-i18n="labelLanguage">Language</label>
-                            <div class="select-wrapper">
-                                <select id="languageSelect" class="custom-select">
-                                    <option value="auto" data-i18n="optAuto">Auto Detect</option>
-                                    <option value="ko">한국어</option>
-                                    <option value="en">English</option>
-                                </select>
-                                <svg class="select-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                                    <path d="M6 9l6 6 6-6" />
-                                </svg>
-                            </div>
-                        </div>
-
-                        <div class="divider"></div>
-
-                        <div class="field-group">
-                            <label class="field-label" for="apiKeyInput" data-i18n="labelApiKey">API Key</label>
-                            <div class="api-key-wrapper">
-                                <input id="apiKeyInput" type="password" class="api-key-input"
-                                    placeholder="sk-... or AIza..." />
-                                <button id="toggleKeyVisBtn" class="btn-eye">
-                                    <svg id="eyeIcon" width="14" height="14" viewBox="0 0 24 24" fill="none"
-                                        stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                                        <circle cx="12" cy="12" r="3" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-
-                        <button id="saveSettingsBtn" class="btn btn-primary">
-                            <span data-i18n="btnSaveSettings">저장</span>
-                        </button>
-                    </section>
-                </div>
+    <div class="container">
+        <!-- 상단 -->
+        <div class="top-bar">
+            <div class="search-box">
+                <span class="material-icons">search</span>
+                <input id="searchInput" type="text" placeholder="검색어를 입력하세요"
+                    data-i18n-placeholder="placeholderSearch" />
+                <span id="clearSearchBtn" class="material-icons search-clear" style="display:none;">close</span>
             </div>
-
-            <!-- [중앙] 메인 홈 페이지 -->
-            <div class="page main-page">
-                <header class="header main-header">
-                    <div class="brand-lockup">
-                    </div>
-                    <div class="header-actions">
-                        <button id="docsBtn" class="btn-icon-header" aria-label="기록 보기">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                <polyline points="14 2 14 8 20 8"></polyline>
-                                <line x1="16" y1="13" x2="8" y2="13"></line>
-                                <line x1="16" y1="17" x2="8" y2="17"></line>
-                                <line x1="10" y1="9" x2="8" y2="9"></line>
-                            </svg>
-                        </button>
-                        <button id="settingsToggleBtn" class="btn-icon-header" aria-label="설정">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="3" />
-                                <path
-                                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                            </svg>
-                        </button>
-                    </div>
-                </header>
-
-                <div class="page-content">
-
-                    <section class="card search-card">
-                        <div class="card-label" data-i18n="titleSearch">SEARCH</div>
-                        <div class="search-box">
-                            <svg class="search-icon-left" width="14" height="14" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                                <circle cx="11" cy="11" r="8" />
-                                <path d="M21 21l-4.35-4.35" />
-                            </svg>
-                            <input id="searchInput" type="text" placeholder="기억나는 내용 입력..." autocomplete="off"
-                                data-i18n-placeholder="placeholderSearch" />
-                            <div class="search-actions">
-                                <button id="clearBtn" class="btn-clear" style="display:none;">✕</button>
-                                <button id="searchBtn" class="btn-search-icon">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="3" stroke-linecap="round">
-                                        <path d="M5 12h14M12 5l7 7-7 7" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                        <div id="results" class="results-container"></div>
-                    </section>
-
-
-                    <button id="saveBtn" class="btn btn-primary btn-extract">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2.5" stroke-linecap="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
-                        </svg>
-                        <span data-i18n="btnExtract">스크립트 추출</span>
-                    </button>
-
-
-                </div>
-            </div>
-
-            <!-- [오른쪽] 저장된 영상 목록 페이지 -->
-            <div class="page list-page">
-                <header class="header">
-                    <button id="backToMainBtn" class="btn-icon-header" aria-label="뒤로가기">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M15 18l-6-6 6-6" />
-                        </svg>
-                    </button>
-                    <h1 class="brand-title" data-i18n="titleSavedMemory">Saved</h1>
-                </header>
-
-                <div class="page-content">
-                    <div id="videoList" class="video-list-full"></div>
-                    <button id="clearAllBtn" class="btn btn-danger" style="display:none;">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <polyline points="3 6 5 6 21 6" />
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                        </svg>
-                        <span data-i18n="btnClearAll">전체 삭제</span>
-                    </button>
-                </div>
-            </div>
-
+            <button id="settingsToggleBtn" class="icon-btn" title="설정" data-i18n-title="titleSettings">
+                <span class="material-icons">settings</span>
+            </button>
+            <button id="docsBtn" class="icon-btn" title="저장된 영상 목록" data-i18n-title="titleSavedMemory">
+                <span class="material-icons">article</span>
+            </button>
         </div>
 
-        <div id="status" class="status"></div>
-    </div>
+        <!-- 뷰포트 (슬라이드 애니메이션용) -->
+        <div class="viewport">
+            <div id="pageWrapper" class="page-wrapper">
 
+                <!-- 1. 설정 페이지 -->
+                <div class="page settings-page">
+                    <div class="page-header">
+                        <button id="backToMainFromSettings" class="icon-btn">
+                            <span class="material-icons">arrow_back</span>
+                        </button>
+                        <h2 data-i18n="titleSettings">설정</h2>
+                    </div>
+                    <div class="page-content">
+                        <div class="field-group">
+                            <label class="field-label" for="languageSelect" data-i18n="labelLanguage">언어
+                                (Language)</label>
+                            <div class="select-wrapper">
+                                <select id="languageSelect" class="custom-select">
+                                    <option value="auto" data-i18n="optAuto">자동 감지 (Auto)</option>
+                                    <option value="en">English</option>
+                                    <option value="ko">한국어 (Korean)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="field-group">
+                            <div class="field-label-row">
+                                <label class="field-label" for="apiKeyInput" data-i18n="labelApiKey">Gemini API
+                                    Key</label>
+                                <a href="https://aistudio.google.com/api-keys" target="_blank" class="field-link"
+                                    data-i18n="linkGetApiKey">API key 발급</a>
+                            </div>
+                            <div class="api-key-wrapper">
+                                <input id="apiKeyInput" type="password" class="api-key-input" placeholder="AIza..." />
+                                <button id="toggleKeyVisBtn" class="text-btn">
+                                    <span id="eyeIcon" class="material-icons">visibility_off</span>
+                                </button>
+                            </div>
+                        </div>
+                        <button id="saveSettingsBtn" class="btn-primary-action">
+                            <span data-i18n="btnSaveSettings">설정 저장</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. 메인 페이지 (검색 & 초기상태) -->
+                <div class="page main-page">
+                    <div id="mainEmptyState" class="main">
+                        <div class="illustration">
+                            <span class="material-icons big">description</span>
+                            <span class="material-icons overlay">search</span>
+                        </div>
+                        <h2 data-i18n="titleSearch">원하는 영상을 검색해보세요</h2>
+                        <p data-i18n="descSearch">
+                            영상에서 기억나는 부분을 검색하거나<br />
+                            영상의 주제 등을 검색해보세요.
+                        </p>
+                    </div>
+                    <div id="results" class="results-container" style="display: none;"></div>
+                </div>
+
+                <!-- 3. 목록 페이지 -->
+                <div class="page list-page">
+                    <div class="page-header">
+                        <button id="backToMainFromList" class="icon-btn">
+                            <span class="material-icons">arrow_back</span>
+                        </button>
+                        <h2 data-i18n="titleSavedMemory">저장된 기록</h2>
+                        <button id="clearAllBtn" class="icon-btn danger text-btn-flex">
+                            <span class="material-icons">delete_sweep</span>
+                            <span data-i18n="btnClearAll">전체 삭제</span>
+                        </button>
+                    </div>
+                    <div class="page-content">
+                        <div id="videoList" class="video-list-full"></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- 하단 고정 스크립트 추출 버튼 -->
+        <button id="saveBtn" class="bottom-action-btn" data-i18n="btnExtract">영상 내용 추출</button>
+    </div>
+    <div id="statusMessage" class="status"></div>
     <script src="popup.js"></script>
 </body>
 
